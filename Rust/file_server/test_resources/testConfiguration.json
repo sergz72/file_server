@@ -1,0 +1,6 @@
+{
+  "KeyFileName": "key.dat",
+  "PortNumber": 59999,
+  "BaseFolder": "/tmp",
+  "HashDivider": 10000
+}

@@ -1,0 +1,9 @@
+[package]
+name = "file_server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+smart_home_common = { path = "../smart_home/smart_home_common" }
+serde = { version = "1.X", features = ["derive"] }
+serde_json = "1.X"
