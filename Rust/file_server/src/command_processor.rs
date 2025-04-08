@@ -1,5 +1,6 @@
-use std::io::{Error, ErrorKind};
+use std::io::{Error, ErrorKind, Read};
 use std::sync::RwLock;
+use bzip2::read::BzDecoder;
 use smart_home_common::user_message_processor::CommandProcessor;
 use crate::database::KeyValue;
 use crate::databases::Databases;
@@ -15,8 +16,8 @@ impl CommandProcessor for UserCommandProcessor {
 
     fn execute(&self, command: Vec<u8>) -> Result<Vec<u8>, Error> {
         match command[0] {
-            0 => self.run_get_commmand(&command[1..]),
-            1 => self.run_set_commmand(&command[1..]),
+            0 => self.run_get_command(&command[1..]),
+            1 => self.run_set_command(&command[1..]),
             _ => Err(Error::new(ErrorKind::InvalidInput, "Invalid command"))
         }
     }
@@ -28,7 +29,7 @@ impl UserCommandProcessor {
         Ok(Box::new(UserCommandProcessor{ data }))
     }
 
-    fn run_get_commmand(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
+    fn run_get_command(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
         let (database, idx) = get_database_name(command)?;
         if idx + 8 < command.len() {
             return Err(Error::new(ErrorKind::InvalidInput, "Invalid get command length"));
@@ -51,18 +52,26 @@ impl UserCommandProcessor {
         Ok(data)
     }
 
-    fn run_set_commmand(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
+    fn run_set_command(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
         let (database, idx) = get_database_name(command)?;
-        let data = KeyValue::from(&command[idx..])?;
+        let decompressed = decompress(&command[idx..])?;
+        let data = KeyValue::from(decompressed)?;
         let mut lock = self.data.write().unwrap();
         lock.set(database, data)?;
         Ok(vec![0]) // no error
     }
 }
 
+fn decompress(data: &[u8]) -> Result<Vec<u8>, Error> {
+    let mut decompressor = BzDecoder::new(data);
+    let mut result = Vec::new();
+    decompressor.read_to_end(&mut result)?;
+    Ok(result)
+}
+
 fn get_database_name(command: &[u8]) -> Result<(String, usize), Error> {
     let length = command[0] as usize;
-    let name = String::from_utf8(command[1..length].to_vec())
+    let name = String::from_utf8(command[1..length+1].to_vec())
         .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
     Ok((name, length + 1))
 }

@@ -12,7 +12,7 @@ pub struct Configuration {
     #[serde(rename = "BaseFolder")]
     pub base_folder: String,
     #[serde(rename = "HashDivider")]
-    pub hash_divider: usize,
+    pub hash_divider: usize
 }
 
 pub fn load_configuration(ini_file_name: &String) -> Result<Configuration, Error> {

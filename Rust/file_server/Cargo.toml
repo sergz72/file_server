@@ -7,3 +7,4 @@ edition = "2024"
 smart_home_common = { path = "../smart_home/smart_home_common" }
 serde = { version = "1.X", features = ["derive"] }
 serde_json = "1.X"
+bzip2 = "0.X"
