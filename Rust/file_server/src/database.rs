@@ -16,6 +16,7 @@ pub struct KeyValueRef<'a> {
 pub struct Database {
     base_folder: PathBuf,
     hash_divider: usize,
+    version: u32,
     data: BTreeMap<usize, Vec<u8>>
 }
 
@@ -59,16 +60,24 @@ impl KeyValue {
 impl Database {
     pub fn new(base_folder: PathBuf, hash_divider: usize) -> Result<Database, Error> {
         let data = load_data(&base_folder)?;
-        Ok(Database{base_folder, hash_divider, data})
+        Ok(Database{base_folder, hash_divider, data, version: 1})
     }
 
+    pub fn get_version(&self) -> u32 {
+        self.version
+    }
+    
     pub fn get(&self, key1: usize, key2: usize) -> Vec<KeyValueRef> {
         self.data.range(key1..=key2)
             .map(|(k, value)|KeyValueRef{key: *k, value})
             .collect()
     }
 
-    pub fn set(&mut self, data: Vec<KeyValue>) -> Result<(), Error> {
+    pub fn set(&mut self, expected_version: u32, data: Vec<KeyValue>) -> Result<(), Error> {
+        if expected_version != self.version {
+            return Err(Error::new(ErrorKind::InvalidData, "version mismatch"));
+        }
+        self.version += 1;
         for kv in data {
             self.save(kv.key, &kv.value)?;
             self.data.insert(kv.key, kv.value);

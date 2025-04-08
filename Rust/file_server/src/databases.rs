@@ -26,30 +26,32 @@ impl Databases {
         Ok(Databases{data: result, base_path, hash_divider})
     }
 
-    pub fn get(&self, database: String, key1: usize, key2: usize) -> Vec<KeyValue> {
+    pub fn get(&self, database: String, key1: usize, key2: usize) -> (u32, Vec<KeyValue>) {
         match self.data.get(&database) {
             Some(data) => {
                 let lock = data.read().unwrap();
                 let value = lock.get(key1, key2);
-                value.iter()
+                let result = value.iter()
                     .map(|v|KeyValue{key: v.key, value: v.value.clone()})
-                    .collect()
+                    .collect();
+                (lock.get_version(), result)
             },
-            None => Vec::new()
+            None => (1, Vec::new())
         }
     }
 
-    pub fn set(&mut self, database: String, data: Vec<KeyValue>) -> Result<(), Error> {
+    pub fn set(&mut self, database: String, expected_version: u32, data: Vec<KeyValue>)
+        -> Result<(), Error> {
         match self.data.get(&database) {
             Some(db) => {
                 let mut lock = db.write().unwrap();
-                lock.set(data)
+                lock.set(expected_version, data)
             },
             None => {
                 let path = self.base_path.join(&database);
                 fs::create_dir(&path)?;
                 let mut db = Database::new(path, self.hash_divider)?;
-                db.set(data)?;
+                db.set(expected_version, data)?;
                 self.data.insert(database.clone(), RwLock::new(db));
                 Ok(())
             }

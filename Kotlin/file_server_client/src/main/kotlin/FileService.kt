@@ -20,8 +20,10 @@ data class KeyValue(val key: Int, val value: ByteArray) {
     }
 }
 
+data class GetResponse(val dbVersion: Int, val data: Map<Int, ByteArray>)
+
 class FileService(key: ByteArray, hostName: String, port: Int, val dbName: String): NetworkService(key, hostName, port) {
-    fun get(key1: Int, key2: Int): Map<Int, ByteArray> {
+    fun get(key1: Int, key2: Int): GetResponse {
         val request = buildGetRequest(key1, key2)
         val response = send(request)
         return when (response[0]) {
@@ -32,8 +34,9 @@ class FileService(key: ByteArray, hostName: String, port: Int, val dbName: Strin
         }
     }
 
-    private fun decodeGetResponse(response: List<Byte>): Map<Int, ByteArray> {
+    private fun decodeGetResponse(response: List<Byte>): GetResponse {
         val buffer = ByteBuffer.wrap(response.toByteArray()).order(ByteOrder.LITTLE_ENDIAN)
+        val dbVersion = buffer.getInt()
         var length = buffer.getInt()
         val result = mutableMapOf<Int, ByteArray>()
         while (length-- > 0) {
@@ -46,7 +49,7 @@ class FileService(key: ByteArray, hostName: String, port: Int, val dbName: Strin
         if (buffer.hasRemaining()) {
             throw IOException("Incorrect response length")
         }
-        return result
+        return GetResponse(dbVersion, result)
     }
 
     private fun buildGetRequest(key1: Int, key2: Int): ByteArray {
@@ -60,21 +63,22 @@ class FileService(key: ByteArray, hostName: String, port: Int, val dbName: Strin
         return buffer.array()
     }
 
-    fun set(values: List<KeyValue>) {
-        val request = buildSetRequest(values)
+    fun set(dbVersion: Int, values: List<KeyValue>) {
+        val request = buildSetRequest(dbVersion, values)
         val response = send(request)
         if (response[0] != 0.toByte()) {
             throw ResponseError(response)
         }
     }
 
-    private fun buildSetRequest(values: List<KeyValue>): ByteArray {
+    private fun buildSetRequest(dbVersion: Int, values: List<KeyValue>): ByteArray {
         val bytes = dbName.toByteArray(Charsets.UTF_8)
         val compressed = compress(values)
-        val buffer = ByteBuffer.allocate(compressed.size + bytes.size + 2).order(ByteOrder.LITTLE_ENDIAN)
+        val buffer = ByteBuffer.allocate(compressed.size + bytes.size + 6).order(ByteOrder.LITTLE_ENDIAN)
         buffer.put(1)
         buffer.put(bytes.size.toByte())
         buffer.put(bytes)
+        buffer.putInt(dbVersion)
         buffer.put(compressed)
         return buffer.array()
     }

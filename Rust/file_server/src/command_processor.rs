@@ -41,10 +41,11 @@ impl UserCommandProcessor {
         let to = u32::from_le_bytes(buffer32);
         
         let lock = self.data.read().unwrap();
-        let result = lock.get(database, from as usize, to as usize);
+        let (version, result) = lock.get(database, from as usize, to as usize);
         
         let mut data = Vec::new();
         data.push(0); // no error
+        data.extend_from_slice(&version.to_le_bytes());
         data.extend_from_slice(&(result.len() as u32).to_le_bytes());
         for kv in result {
             data.extend_from_slice(&kv.to_binary());
@@ -53,11 +54,13 @@ impl UserCommandProcessor {
     }
 
     fn run_set_command(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
-        let (database, idx) = get_database_name(command)?;
+        let (database, mut idx) = get_database_name(command)?;
+        let expected_version = u32::from_le_bytes(command[idx..idx+4].try_into().unwrap());
+        idx += 4;
         let decompressed = decompress(&command[idx..])?;
         let data = KeyValue::from(decompressed)?;
         let mut lock = self.data.write().unwrap();
-        lock.set(database, data)?;
+        lock.set(database, expected_version, data)?;
         Ok(vec![0]) // no error
     }
 }

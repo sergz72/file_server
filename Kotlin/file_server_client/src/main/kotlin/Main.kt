@@ -40,8 +40,8 @@ fun runGetCommand(service: FileService, args: List<String>) {
     val mark1 = timeSource.markNow()
     val response = service.get(key1, key2)
     val mark2 = timeSource.markNow()
-    println("Response time: ${mark2 - mark1}, number of files: ${response.size}.")
-    for ((k,v) in response) {
+    println("Response time: ${mark2 - mark1}, db version: ${response.dbVersion}, number of files: ${response.data.size}.")
+    for ((k,v) in response.data) {
         val fileName = k.toString()
         println("Writing $fileName...")
         File(k.toString()).writeBytes(v)
@@ -49,6 +49,11 @@ fun runGetCommand(service: FileService, args: List<String>) {
 }
 
 fun runSetCommand(service: FileService, args: List<String>) {
-    val data = args.map { KeyValue(it.toInt(), Files.readAllBytes(Paths.get(it))) }.toList()
-    service.set(data)
+    if (args.size < 2) {
+        usage()
+        return
+    }
+    val dbVersion = args[0].toInt()
+    val data = args.drop(1).map { KeyValue(it.toInt(), Files.readAllBytes(Paths.get(it))) }.toList()
+    service.set(dbVersion, data)
 }
