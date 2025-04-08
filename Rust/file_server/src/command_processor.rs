@@ -11,13 +11,14 @@ pub struct UserCommandProcessor {
 
 impl CommandProcessor for UserCommandProcessor {
     fn check_message_length(&self, length: usize) -> bool {
-        length > 10
+        length > 6
     }
 
     fn execute(&self, command: Vec<u8>) -> Result<Vec<u8>, Error> {
         match command[0] {
             0 => self.run_get_command(&command[1..]),
             1 => self.run_set_command(&command[1..]),
+            2 => self.run_get_last_command(&command[1..]),
             _ => Err(Error::new(ErrorKind::InvalidInput, "Invalid command"))
         }
     }
@@ -31,7 +32,7 @@ impl UserCommandProcessor {
 
     fn run_get_command(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
         let (database, idx) = get_database_name(command)?;
-        if idx + 8 < command.len() {
+        if idx + 8 != command.len() {
             return Err(Error::new(ErrorKind::InvalidInput, "Invalid get command length"));
         }
         let mut buffer32 = [0u8; 4];
@@ -53,6 +54,30 @@ impl UserCommandProcessor {
         Ok(data)
     }
 
+    fn run_get_last_command(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
+        let (database, idx) = get_database_name(command)?;
+        if idx + 4 != command.len() {
+            return Err(Error::new(ErrorKind::InvalidInput, "Invalid get_last command length"));
+        }
+        let mut buffer32 = [0u8; 4];
+        buffer32.clone_from_slice(&command[idx..idx + 4]);
+        let to = u32::from_le_bytes(buffer32);
+
+        let lock = self.data.read().unwrap();
+        let (version, result) = lock.get_last(database, to as usize);
+
+        let mut data = Vec::new();
+        data.push(0); // no error
+        data.extend_from_slice(&version.to_le_bytes());
+        if let Some(kv) = result {
+            data.push(1);
+            data.extend_from_slice(&kv.to_binary());
+        } else {
+            data.push(0);
+        }
+        Ok(data)
+    }
+    
     fn run_set_command(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
         let (database, mut idx) = get_database_name(command)?;
         let expected_version = u32::from_le_bytes(command[idx..idx+4].try_into().unwrap());

@@ -40,6 +40,19 @@ impl Databases {
         }
     }
 
+    pub fn get_last(&self, database: String, key: usize) -> (u32, Option<KeyValue>) {
+        match self.data.get(&database) {
+            Some(data) => {
+                let lock = data.read().unwrap();
+                let value = lock.get_last(key);
+                let result = value
+                    .map(|v|KeyValue{key: v.key, value: v.value.clone()});
+                (lock.get_version(), result)
+            },
+            None => (1, None)
+        }
+    }
+    
     pub fn set(&mut self, database: String, expected_version: u32, data: Vec<KeyValue>)
         -> Result<(), Error> {
         match self.data.get(&database) {

@@ -73,6 +73,11 @@ impl Database {
             .collect()
     }
 
+    pub fn get_last(&self, key: usize) -> Option<KeyValueRef> {
+        self.data.range(0..=key).last()
+            .map(|(k, value)|KeyValueRef{key: *k, value})
+    }
+    
     pub fn set(&mut self, expected_version: u32, data: Vec<KeyValue>) -> Result<(), Error> {
         if expected_version != self.version {
             return Err(Error::new(ErrorKind::InvalidData, "version mismatch"));

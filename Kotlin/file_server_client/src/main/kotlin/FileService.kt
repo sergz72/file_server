@@ -22,6 +22,8 @@ data class KeyValue(val key: Int, val value: ByteArray) {
 
 data class GetResponse(val dbVersion: Int, val data: Map<Int, ByteArray>)
 
+data class GetLastResponse(val dbVersion: Int, val data: Pair<Int, ByteArray>?)
+
 class FileService(key: ByteArray, hostName: String, port: Int, val dbName: String): NetworkService(key, hostName, port) {
     fun get(key1: Int, key2: Int): GetResponse {
         val request = buildGetRequest(key1, key2)
@@ -29,6 +31,17 @@ class FileService(key: ByteArray, hostName: String, port: Int, val dbName: Strin
         return when (response[0]) {
             //no error
             0.toByte() -> decodeGetResponse(response.drop(1))
+            // error
+            else -> throw ResponseError(response)
+        }
+    }
+
+    fun getLast(key: Int): GetLastResponse {
+        val request = buildGetLastRequest(key)
+        val response = send(request)
+        return when (response[0]) {
+            //no error
+            0.toByte() -> decodeGetLastResponse(response.drop(1))
             // error
             else -> throw ResponseError(response)
         }
@@ -52,6 +65,24 @@ class FileService(key: ByteArray, hostName: String, port: Int, val dbName: Strin
         return GetResponse(dbVersion, result)
     }
 
+    private fun decodeGetLastResponse(response: List<Byte>): GetLastResponse {
+        val buffer = ByteBuffer.wrap(response.toByteArray()).order(ByteOrder.LITTLE_ENDIAN)
+        val dbVersion = buffer.getInt()
+        val fileIsPresent = buffer.get() != 0.toByte()
+        var kv: Pair<Int, ByteArray>? = null
+        if (fileIsPresent) {
+            val key = buffer.getInt()
+            val valueLength = buffer.getInt()
+            val value = ByteArray(valueLength)
+            buffer.get(value)
+            kv = Pair(key, value)
+        }
+        if (buffer.hasRemaining()) {
+            throw IOException("Incorrect response length")
+        }
+        return GetLastResponse(dbVersion, kv)
+    }
+
     private fun buildGetRequest(key1: Int, key2: Int): ByteArray {
         val bytes = dbName.toByteArray(Charsets.UTF_8)
         val buffer = ByteBuffer.allocate(9 + bytes.size + 1).order(ByteOrder.LITTLE_ENDIAN)
@@ -60,6 +91,16 @@ class FileService(key: ByteArray, hostName: String, port: Int, val dbName: Strin
         buffer.put(bytes)
         buffer.putInt(key1)
         buffer.putInt(key2)
+        return buffer.array()
+    }
+
+    private fun buildGetLastRequest(key: Int): ByteArray {
+        val bytes = dbName.toByteArray(Charsets.UTF_8)
+        val buffer = ByteBuffer.allocate(5 + bytes.size + 1).order(ByteOrder.LITTLE_ENDIAN)
+        buffer.put(2)
+        buffer.put(bytes.size.toByte())
+        buffer.put(bytes)
+        buffer.putInt(key)
         return buffer.array()
     }
 
