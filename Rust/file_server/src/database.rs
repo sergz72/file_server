@@ -93,15 +93,29 @@ impl Database {
         }
         self.version += 1;
         for kv in data {
-            let version = self.data.get(&kv.key).map(|f|f.version).unwrap_or(0) + 1;
-            self.save(kv.key, version, &kv.value)?;
-            self.data.insert(kv.key, File{version, data: kv.value});
+            if kv.value.len() != 0 {
+                let version = self.data.get(&kv.key).map(|f| f.version).unwrap_or(0) + 1;
+                self.save(kv.key, version, &kv.value)?;
+                self.data.insert(kv.key, File { version, data: kv.value });
+            } else {
+                self.delete(kv.key)?;
+                self.data.remove(&kv.key);
+            }
         }
         Ok(())
     }
     
     pub fn get_file_version(&self, key: usize) -> Option<u32> {
         self.data.get(&key).map(|f|f.version)
+    }
+
+    fn delete(&self, key: usize) -> Result<(), Error> {
+        let file_path = self.build_file_path(key)?;
+        if file_path.try_exists()? {
+            fs::remove_file(file_path)
+        } else {
+            Ok(())
+        }
     }
 
     fn save(&self, key: usize, version: u32, value: &Vec<u8>) -> Result<(), Error> {
@@ -168,7 +182,11 @@ mod tests {
         let mut files = build_files(1000)?;
         database.set(1, files.clone())?;
         compare_database(&database, &files);
-        let set = modify_files(&mut files, 100);
+        let mut set = modify_files(&mut files, 100);
+        //delete operation
+        set[0].value = Vec::new();
+        let idx = files.iter().position(|f|f.key == set[0].key).unwrap();
+        files.remove(idx);
         database.set(2, set)?;
         compare_database(&database, &files);
         let database2 = Database::new(PathBuf::from(TEST_DB_PATH), 10000)?;
