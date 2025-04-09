@@ -32,7 +32,7 @@ impl Databases {
                 let lock = data.read().unwrap();
                 let value = lock.get(key1, key2);
                 let result = value.iter()
-                    .map(|v|KeyValue{key: v.key, value: v.value.clone()})
+                    .map(|v|KeyValue{key: v.key, version: v.version, value: v.value.clone()})
                     .collect();
                 (lock.get_version(), result)
             },
@@ -40,14 +40,24 @@ impl Databases {
         }
     }
 
-    pub fn get_last(&self, database: String, key: usize) -> (u32, Option<KeyValue>) {
+    pub fn get_last(&self, database: String, key1: usize, key2: usize) -> (u32, Option<KeyValue>) {
         match self.data.get(&database) {
             Some(data) => {
                 let lock = data.read().unwrap();
-                let value = lock.get_last(key);
+                let value = lock.get_last(key1, key2);
                 let result = value
-                    .map(|v|KeyValue{key: v.key, value: v.value.clone()});
+                    .map(|v|KeyValue{key: v.key, version: v.version, value: v.value.clone()});
                 (lock.get_version(), result)
+            },
+            None => (1, None)
+        }
+    }
+    
+    pub fn get_file_version(&self, database: String, key: usize) -> (u32, Option<u32>) {
+        match self.data.get(&database) {
+            Some(data) => {
+                let lock = data.read().unwrap();
+                (lock.get_version(), lock.get_file_version(key))
             },
             None => (1, None)
         }

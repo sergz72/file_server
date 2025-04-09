@@ -19,6 +19,7 @@ impl CommandProcessor for UserCommandProcessor {
             0 => self.run_get_command(&command[1..]),
             1 => self.run_set_command(&command[1..]),
             2 => self.run_get_last_command(&command[1..]),
+            3 => self.run_get_file_version_command(&command[1..]),
             _ => Err(Error::new(ErrorKind::InvalidInput, "Invalid command"))
         }
     }
@@ -31,18 +32,10 @@ impl UserCommandProcessor {
     }
 
     fn run_get_command(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
-        let (database, idx) = get_database_name(command)?;
-        if idx + 8 != command.len() {
-            return Err(Error::new(ErrorKind::InvalidInput, "Invalid get command length"));
-        }
-        let mut buffer32 = [0u8; 4];
-        buffer32.clone_from_slice(&command[idx..idx+4]);
-        let from = u32::from_le_bytes(buffer32);
-        buffer32.clone_from_slice(&command[idx+4..idx+8]);
-        let to = u32::from_le_bytes(buffer32);
+        let (database, from, to) = parse_get_command_parameters(command)?;
         
         let lock = self.data.read().unwrap();
-        let (version, result) = lock.get(database, from as usize, to as usize);
+        let (version, result) = lock.get(database, from, to);
         
         let mut data = Vec::new();
         data.push(0); // no error
@@ -55,16 +48,10 @@ impl UserCommandProcessor {
     }
 
     fn run_get_last_command(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
-        let (database, idx) = get_database_name(command)?;
-        if idx + 4 != command.len() {
-            return Err(Error::new(ErrorKind::InvalidInput, "Invalid get_last command length"));
-        }
-        let mut buffer32 = [0u8; 4];
-        buffer32.clone_from_slice(&command[idx..idx + 4]);
-        let to = u32::from_le_bytes(buffer32);
+        let (database, from, to) = parse_get_command_parameters(command)?;
 
         let lock = self.data.read().unwrap();
-        let (version, result) = lock.get_last(database, to as usize);
+        let (version, result) = lock.get_last(database, from, to);
 
         let mut data = Vec::new();
         data.push(0); // no error
@@ -75,6 +62,19 @@ impl UserCommandProcessor {
         } else {
             data.push(0);
         }
+        Ok(data)
+    }
+
+    fn run_get_file_version_command(&self, command: &[u8]) -> Result<Vec<u8>, Error> {
+        let (database, key) = parse_get_file_version_command_parameters(command)?;
+
+        let lock = self.data.read().unwrap();
+        let (db_version, file_version) = lock.get_file_version(database, key);
+
+        let mut data = Vec::new();
+        data.push(0); // no error
+        data.extend_from_slice(&db_version.to_le_bytes());
+        data.extend_from_slice(&file_version.unwrap_or(0).to_le_bytes());
         Ok(data)
     }
     
@@ -88,6 +88,30 @@ impl UserCommandProcessor {
         lock.set(database, expected_version, data)?;
         Ok(vec![0]) // no error
     }
+}
+
+fn parse_get_command_parameters(command: &[u8]) -> Result<(String, usize, usize), Error> {
+    let (database, idx) = get_database_name(command)?;
+    if idx + 8 != command.len() {
+        return Err(Error::new(ErrorKind::InvalidInput, "Invalid get command length"));
+    }
+    let mut buffer32 = [0u8; 4];
+    buffer32.clone_from_slice(&command[idx..idx+4]);
+    let from = u32::from_le_bytes(buffer32) as usize;
+    buffer32.clone_from_slice(&command[idx+4..idx+8]);
+    let to = u32::from_le_bytes(buffer32) as usize;
+    Ok((database, from, to))
+}
+
+fn parse_get_file_version_command_parameters(command: &[u8]) -> Result<(String, usize), Error> {
+    let (database, idx) = get_database_name(command)?;
+    if idx + 4 != command.len() {
+        return Err(Error::new(ErrorKind::InvalidInput, "Invalid get command length"));
+    }
+    let mut buffer32 = [0u8; 4];
+    buffer32.clone_from_slice(&command[idx..idx+4]);
+    let key = u32::from_le_bytes(buffer32) as usize;
+    Ok((database, key))
 }
 
 fn decompress(data: &[u8]) -> Result<Vec<u8>, Error> {

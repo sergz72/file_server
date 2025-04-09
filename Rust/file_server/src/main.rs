@@ -1,3 +1,5 @@
+extern crate core;
+
 mod configuration;
 mod command_processor;
 mod databases;
