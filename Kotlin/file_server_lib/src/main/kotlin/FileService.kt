@@ -1,4 +1,4 @@
-package com.sz.file_server.client
+package com.sz.file_server.lib
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import com.sz.smart_home.common.NetworkService

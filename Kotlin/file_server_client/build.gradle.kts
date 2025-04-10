@@ -10,8 +10,9 @@ repositories {
 }
 
 dependencies {
-    api("org.apache.commons:commons-compress:1.27.1")
-    implementation(files("../smart_home/smart_home_common/build/libs/smart_home_common-0.1.jar"))
+    runtimeOnly("org.apache.commons:commons-compress:1.27.1")
+    implementation(files("../../smart_home/smart_home_common/build/libs/smart_home_common-0.1.jar"))
+    implementation(files("../file_server_lib/build/libs/file_server_lib-0.1.jar"))
     testImplementation(kotlin("test"))
 }
 

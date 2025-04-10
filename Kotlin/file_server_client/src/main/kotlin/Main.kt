@@ -1,5 +1,7 @@
 package com.sz.file_server.client
 
+import com.sz.file_server.lib.FileService
+import com.sz.file_server.lib.KeyValue
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -64,9 +66,9 @@ fun runGetLastCommand(service: FileService, args: List<String>) {
     val cnt = if (response.data == null) { 0 } else { 1 }
     println("Response time: ${mark2 - mark1}, db version: ${response.dbVersion}, number of files: $cnt.")
     if (response.data != null) {
-        val fileName = response.data.first.toString()
-        println("File $fileName version ${response.data.second.version}.")
-        File(fileName).writeBytes(response.data.second.data)
+        val fileName = response.data!!.first.toString()
+        println("File $fileName version ${response.data!!.second.version}.")
+        File(fileName).writeBytes(response.data!!.second.data)
     }
 }
 
