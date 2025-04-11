@@ -36,37 +36,70 @@ data class GetLastResponse(val dbVersion: Int, val data: Pair<Int, File>?)
 data class GetFileVersionResponse(val dbVersion: Int, val fileVersion: Int?)
 
 class FileService(key: ByteArray, hostName: String, port: Int, private val dbName: String): NetworkService(key, hostName, port) {
-    fun get(key1: Int, key2: Int): GetResponse {
+    fun get(key1: Int, key2: Int, callback: Callback<GetResponse>) {
         val request = buildGetRequest(RequestId.Get, key1, key2)
-        val response = send(request)
-        return when (response[0]) {
-            //no error
-            0.toByte() -> decodeGetResponse(response.drop(1))
-            // error
-            else -> throw ResponseError(response)
-        }
+        send(request, object: Callback<ByteArray> {
+            override fun onResponse(response: ByteArray) {
+                try {
+                    when (response[0]) {
+                        //no error
+                        0.toByte() -> callback.onResponse(decodeGetResponse(response.drop(1)))
+                        // error
+                        else -> throw ResponseError(response)
+                    }
+                } catch (t: Throwable) {
+                    callback.onFailure(t)
+                }
+            }
+
+            override fun onFailure(t: Throwable) {
+                callback.onFailure(t)
+            }
+        })
     }
 
-    fun getLast(key1: Int, key2: Int): GetLastResponse {
+    fun getLast(key1: Int, key2: Int, callback: Callback<GetLastResponse>) {
         val request = buildGetRequest(RequestId.GetLast, key1, key2)
-        val response = send(request)
-        return when (response[0]) {
-            //no error
-            0.toByte() -> decodeGetLastResponse(response.drop(1))
-            // error
-            else -> throw ResponseError(response)
-        }
+        send(request, object: Callback<ByteArray> {
+            override fun onResponse(response: ByteArray) {
+                try {
+                    when (response[0]) {
+                        //no error
+                        0.toByte() -> callback.onResponse(decodeGetLastResponse(response.drop(1)))
+                        // error
+                        else -> throw ResponseError(response)
+                    }
+                } catch (t: Throwable) {
+                    callback.onFailure(t)
+                }
+            }
+
+            override fun onFailure(t: Throwable) {
+                callback.onFailure(t)
+            }
+        })
     }
 
-    fun getFileVersion(key: Int): GetFileVersionResponse {
+    fun getFileVersion(key: Int, callback: Callback<GetFileVersionResponse>) {
         val request = buildGetFileVersionRequest(key)
-        val response = send(request)
-        return when (response[0]) {
-            //no error
-            0.toByte() -> decodeGetFileVersionResponse(response.drop(1))
-            // error
-            else -> throw ResponseError(response)
-        }
+        send(request, object: Callback<ByteArray> {
+            override fun onResponse(response: ByteArray) {
+                try {
+                    when (response[0]) {
+                        //no error
+                        0.toByte() -> callback.onResponse(decodeGetFileVersionResponse(response.drop(1)))
+                        // error
+                        else -> throw ResponseError(response)
+                    }
+                } catch (t: Throwable) {
+                    callback.onFailure(t)
+                }
+            }
+
+            override fun onFailure(t: Throwable) {
+                callback.onFailure(t)
+            }
+        })
     }
 
     private fun decodeGetResponse(response: List<Byte>): GetResponse {
@@ -138,12 +171,25 @@ class FileService(key: ByteArray, hostName: String, port: Int, private val dbNam
         return buffer.array()
     }
 
-    fun set(dbVersion: Int, values: List<KeyValue>) {
+    fun set(dbVersion: Int, values: List<KeyValue>, callback: Callback<Unit>) {
         val request = buildSetRequest(dbVersion, values)
-        val response = send(request)
-        if (response[0] != 0.toByte()) {
-            throw ResponseError(response)
-        }
+        val response = send(request, object: Callback<ByteArray> {
+            override fun onResponse(response: ByteArray) {
+                try {
+                    if (response[0] != 0.toByte()) {
+                        throw ResponseError(response)
+                    }
+                    callback.onResponse(Unit)
+                } catch (t: Throwable) {
+                    callback.onFailure(t)
+                }
+            }
+
+            override fun onFailure(t: Throwable) {
+                callback.onFailure(t)
+            }
+
+        })
     }
 
     private fun buildSetRequest(dbVersion: Int, values: List<KeyValue>): ByteArray {

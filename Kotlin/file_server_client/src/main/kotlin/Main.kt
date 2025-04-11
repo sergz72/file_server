@@ -1,7 +1,7 @@
 package com.sz.file_server.client
 
-import com.sz.file_server.lib.FileService
-import com.sz.file_server.lib.KeyValue
+import com.sz.file_server.lib.*
+import com.sz.smart_home.common.NetworkService
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -42,14 +42,22 @@ fun runGetCommand(service: FileService, args: List<String>) {
     val key2 = args[1].toInt()
     val timeSource = TimeSource.Monotonic
     val mark1 = timeSource.markNow()
-    val response = service.get(key1, key2)
-    val mark2 = timeSource.markNow()
-    println("Response time: ${mark2 - mark1}, db version: ${response.dbVersion}, number of files: ${response.data.size}.")
-    for ((k,v) in response.data) {
-        val fileName = k.toString()
-        println("File $fileName version ${v.version}.")
-        File(fileName).writeBytes(v.data)
-    }
+    service.get(key1, key2, object: NetworkService.Callback<GetResponse> {
+        override fun onResponse(response: GetResponse) {
+            val mark2 = timeSource.markNow()
+            println("Response time: ${mark2 - mark1}, db version: ${response.dbVersion}, number of files: ${response.data.size}.")
+            for ((k,v) in response.data) {
+                val fileName = k.toString()
+                println("File $fileName version ${v.version}.")
+                File(fileName).writeBytes(v.data)
+            }
+        }
+
+        override fun onFailure(t: Throwable) {
+            println(t.message)
+        }
+
+    })
 }
 
 fun runGetLastCommand(service: FileService, args: List<String>) {
@@ -61,15 +69,22 @@ fun runGetLastCommand(service: FileService, args: List<String>) {
     val key2 = args[1].toInt()
     val timeSource = TimeSource.Monotonic
     val mark1 = timeSource.markNow()
-    val response = service.getLast(key1, key2)
-    val mark2 = timeSource.markNow()
-    val cnt = if (response.data == null) { 0 } else { 1 }
-    println("Response time: ${mark2 - mark1}, db version: ${response.dbVersion}, number of files: $cnt.")
-    if (response.data != null) {
-        val fileName = response.data!!.first.toString()
-        println("File $fileName version ${response.data!!.second.version}.")
-        File(fileName).writeBytes(response.data!!.second.data)
-    }
+    service.getLast(key1, key2, object: NetworkService.Callback<GetLastResponse> {
+        override fun onResponse(response: GetLastResponse) {
+            val mark2 = timeSource.markNow()
+            val cnt = if (response.data == null) { 0 } else { 1 }
+            println("Response time: ${mark2 - mark1}, db version: ${response.dbVersion}, number of files: $cnt.")
+            if (response.data != null) {
+                val fileName = response.data!!.first.toString()
+                println("File $fileName version ${response.data!!.second.version}.")
+                File(fileName).writeBytes(response.data!!.second.data)
+            }
+        }
+
+        override fun onFailure(t: Throwable) {
+            println(t.message)
+        }
+    })
 }
 
 fun runGetFileVersionCommand(service: FileService, args: List<String>) {
@@ -80,14 +95,21 @@ fun runGetFileVersionCommand(service: FileService, args: List<String>) {
     val key = args[0].toInt()
     val timeSource = TimeSource.Monotonic
     val mark1 = timeSource.markNow()
-    val response = service.getFileVersion(key)
-    val mark2 = timeSource.markNow()
-    val version = if (response.fileVersion == null) {
-        "none"
-    } else {
-        response.fileVersion.toString()
-    }
-    println("Response time: ${mark2 - mark1}, db version: ${response.dbVersion}, file version: $version.")
+    service.getFileVersion(key, object: NetworkService.Callback<GetFileVersionResponse> {
+        override fun onResponse(response: GetFileVersionResponse) {
+            val mark2 = timeSource.markNow()
+            val version = if (response.fileVersion == null) {
+                "none"
+            } else {
+                response.fileVersion.toString()
+            }
+            println("Response time: ${mark2 - mark1}, db version: ${response.dbVersion}, file version: $version.")
+        }
+
+        override fun onFailure(t: Throwable) {
+            println(t.message)
+        }
+    })
 }
 
 fun runSetCommand(service: FileService, args: List<String>) {
@@ -99,7 +121,14 @@ fun runSetCommand(service: FileService, args: List<String>) {
     val data = args.drop(1).map { KeyValue(it.toInt(), Files.readAllBytes(Paths.get(it))) }.toList()
     val timeSource = TimeSource.Monotonic
     val mark1 = timeSource.markNow()
-    service.set(dbVersion, data)
-    val mark2 = timeSource.markNow()
-    println("Response time: ${mark2 - mark1}.")
+    service.set(dbVersion, data, object: NetworkService.Callback<Unit> {
+        override fun onResponse(response: Unit) {
+            val mark2 = timeSource.markNow()
+            println("Response time: ${mark2 - mark1}.")
+        }
+
+        override fun onFailure(t: Throwable) {
+            println(t.message)
+        }
+    })
 }
