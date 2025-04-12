@@ -1,9 +1,7 @@
 package com.sz.file_server.lib
 
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import com.sz.smart_home.common.NetworkService
 import com.sz.smart_home.common.ResponseError
-import org.apache.commons.io.output.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -195,27 +193,23 @@ class FileService(key: ByteArray, hostName: String, port: Int, private val dbNam
 
     private fun buildSetRequest(dbVersion: Int, values: List<KeyValue>): ByteArray {
         val bytes = dbName.toByteArray(Charsets.UTF_8)
-        val compressed = compress(values)
-        val buffer = ByteBuffer.allocate(compressed.size + bytes.size + 6).order(ByteOrder.LITTLE_ENDIAN)
+        val data = toBinary(values)
+        val buffer = ByteBuffer.allocate(data.size + bytes.size + 6).order(ByteOrder.LITTLE_ENDIAN)
         buffer.put(RequestId.Set.ordinal.toByte())
         buffer.put(bytes.size.toByte())
         buffer.put(bytes)
         buffer.putInt(dbVersion)
-        buffer.put(compressed)
+        buffer.put(data)
         return buffer.array()
     }
 
-    private fun compress(values: List<KeyValue>): ByteArray {
+    private fun toBinary(values: List<KeyValue>): ByteArray {
         val l = values.sumOf { it.getBinaryLength() } + 4
-        val uncompressed = ByteBuffer.allocate(l).order(ByteOrder.LITTLE_ENDIAN)
-        uncompressed.putInt(values.size)
+        val data = ByteBuffer.allocate(l).order(ByteOrder.LITTLE_ENDIAN)
+        data.putInt(values.size)
         for (value in values) {
-            value.toBinary(uncompressed)
+            value.toBinary(data)
         }
-        val stream = ByteArrayOutputStream()
-        val outStream = BZip2CompressorOutputStream(stream, 9)
-        outStream.write(uncompressed.array())
-        outStream.close()
-        return stream.toByteArray()
+        return data.array()
     }
 }
