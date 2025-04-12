@@ -29,7 +29,7 @@ pub struct Database {
 }
 
 impl KeyValue {
-    pub fn from(data: Vec<u8>) -> Result<Vec<KeyValue>, Error> {
+    pub fn from(data: &[u8]) -> Result<Vec<KeyValue>, Error> {
         let l = data.len();
         if l < 4 {
             return Err(Error::new(ErrorKind::InvalidInput, "data is too short"));

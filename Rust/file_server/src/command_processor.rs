@@ -1,6 +1,5 @@
-use std::io::{Error, ErrorKind, Read};
+use std::io::{Error, ErrorKind};
 use std::sync::RwLock;
-use bzip2::read::BzDecoder;
 use smart_home_common::user_message_processor::CommandProcessor;
 use crate::database::KeyValue;
 use crate::databases::Databases;
@@ -82,8 +81,7 @@ impl UserCommandProcessor {
         let (database, mut idx) = get_database_name(command)?;
         let expected_version = u32::from_le_bytes(command[idx..idx+4].try_into().unwrap());
         idx += 4;
-        let decompressed = decompress(&command[idx..])?;
-        let data = KeyValue::from(decompressed)?;
+        let data = KeyValue::from(&command[idx..])?;
         let mut lock = self.data.write().unwrap();
         lock.set(database, expected_version, data)?;
         Ok(vec![0]) // no error
@@ -112,13 +110,6 @@ fn parse_get_file_version_command_parameters(command: &[u8]) -> Result<(String, 
     buffer32.clone_from_slice(&command[idx..idx+4]);
     let key = u32::from_le_bytes(buffer32) as usize;
     Ok((database, key))
-}
-
-fn decompress(data: &[u8]) -> Result<Vec<u8>, Error> {
-    let mut decompressor = BzDecoder::new(data);
-    let mut result = Vec::new();
-    decompressor.read_to_end(&mut result)?;
-    Ok(result)
 }
 
 fn get_database_name(command: &[u8]) -> Result<(String, usize), Error> {

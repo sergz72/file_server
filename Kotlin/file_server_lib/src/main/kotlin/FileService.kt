@@ -35,7 +35,8 @@ data class GetLastResponse(val dbVersion: Int, val data: Pair<Int, File>?)
 
 data class GetFileVersionResponse(val dbVersion: Int, val fileVersion: Int?)
 
-class FileService(key: ByteArray, hostName: String, port: Int, private val dbName: String): NetworkService(key, hostName, port) {
+class FileService(key: ByteArray, hostName: String, port: Int, private val dbName: String):
+    NetworkService(key, hostName, port, false) {
     fun get(key1: Int, key2: Int, callback: Callback<GetResponse>) {
         val request = buildGetRequest(RequestId.Get, key1, key2)
         send(request, object: Callback<ByteArray> {
