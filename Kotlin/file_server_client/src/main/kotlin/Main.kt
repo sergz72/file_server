@@ -22,7 +22,7 @@ fun main(args: Array<String>) {
     val dbName = args[3]
     val command = args[4]
 
-    val service = FileService(keyBytes, hostName, port, dbName)
+    val service = FileService(keyBytes, hostName, port, 1000, dbName)
 
     when (command) {
         "get" -> runGetCommand(service, args.drop(5))
