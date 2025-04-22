@@ -2,5 +2,8 @@
   "KeyFileName": "key.dat",
   "PortNumber": 59999,
   "BaseFolder": "/tmp",
-  "HashDivider": 10000
+  "HashDivider": 10000,
+  "Users": [
+    {"Id": 11223344, "Name":  "User1", "KeyFileName": "key.dat", "DatabasesRW": ["db1"], "DatabasesR": ["db2"]}
+  ]
 }
