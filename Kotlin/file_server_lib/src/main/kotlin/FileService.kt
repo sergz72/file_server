@@ -1,6 +1,7 @@
 package com.sz.file_server.lib
 
 import com.sz.smart_home.common.NetworkService
+import com.sz.smart_home.common.NetworkServiceConfig
 import com.sz.smart_home.common.ResponseError
 import java.io.IOException
 import java.nio.ByteBuffer
@@ -33,8 +34,20 @@ data class GetLastResponse(val dbVersion: Int, val data: Pair<Int, File>?)
 
 data class GetFileVersionResponse(val dbVersion: Int, val fileVersion: Int?)
 
-class FileService(key: ByteArray, hostName: String, port: Int, timeoutMs: Int, private val dbName: String):
-    NetworkService(key, hostName, port, timeoutMs, false) {
+data class FileServiceConfig(val userId: Int, val key: ByteArray, val hostName: String, val port: Int, val timeoutMs: Int,
+                             val dbName: String)
+
+class FileService(config: FileServiceConfig):
+    NetworkService(NetworkServiceConfig(
+        prefix = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(config.userId).array(),
+        key = config.key,
+        hostName = config.hostName,
+        port = config.port,
+        timeoutMs = config.timeoutMs,
+        useBzip2 = false)) {
+
+    private val dbName = config.dbName
+
     fun get(key1: Int, key2: Int, callback: Callback<GetResponse>) {
         val request = buildGetRequest(RequestId.Get, key1, key2)
         send(request, object: Callback<ByteArray> {

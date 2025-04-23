@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, Error, ErrorKind};
 use serde::Deserialize;
@@ -12,10 +12,8 @@ pub struct User {
     pub name: String,
     #[serde(rename = "KeyFileName")]
     pub key_file_name: String,
-    #[serde(rename = "DatabasesRW", default)]
-    pub databases_rw: HashSet<String>,
-    #[serde(rename = "DatabasesR", default)]
-    pub databases_r: HashSet<String>
+    #[serde(rename = "Databases")]
+    pub databases: HashMap<String, String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,9 +79,10 @@ mod tests {
         assert_eq!(user.id, 11223344);
         assert_eq!(user.key_file_name, "key.dat", "incorrect key file name");
         assert_eq!(user.name, "User1", "incorrect user name");
-        assert_eq!(user.databases_rw.len(), 1, "incorrect databases rw");
-        assert!(user.databases_rw.contains("db1"), "incorrect databases rw[0]");
-        assert_eq!(user.databases_r.len(), 1, "incorrect databases r");
-        assert!(user.databases_r.contains("db2"), "incorrect databases r[0]");
+        assert_eq!(user.databases.len(), 2, "incorrect databases rw");
+        assert!(user.databases.contains_key("db1"), "incorrect databases rw(db1)");
+        assert!(user.databases.contains_key("db2"), "incorrect databases rw(db1)");
+        assert_eq!(user.databases.get("db1").unwrap(), "rw", "incorrect db1 value");
+        assert_eq!(user.databases.get("db2").unwrap(), "r", "incorrect db2 value");
     }
 }

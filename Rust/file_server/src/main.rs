@@ -5,7 +5,7 @@ mod command_processor;
 mod databases;
 mod database;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use smart_home_common::base_server::BaseServer;
 use smart_home_common::keys::read_key_file32;
@@ -17,16 +17,15 @@ pub struct UserWithKey {
     pub id: u32,
     pub name: String,
     pub key: [u8; 32],
-    pub databases_rw: HashSet<String>,
-    pub databases_r: HashSet<String>
+    pub databases: HashMap<String, bool>,
 }
 
 impl UserWithKey {
     pub(crate) fn validate_access(&self, db_name: &String, get_request: bool) -> Result<(), Error> {
-        let mut ok = self.databases_rw.contains(db_name);
-        if get_request {
-            ok |= self.databases_r.contains(db_name);
-        }
+        let ok = match self.databases.get(db_name) {
+            Some(rw_access) => if get_request {true} else {*rw_access},
+            None => false
+        };
         if ok {
             Ok(())
         } else {
@@ -38,8 +37,8 @@ impl UserWithKey {
 
 impl UserWithKey {
     fn from(user: &User, key: [u8; 32]) -> UserWithKey {
-        UserWithKey{id: user.id, name: user.name.clone(), key, databases_rw: user.databases_rw.clone(),
-                    databases_r: user.databases_r.clone()}
+        UserWithKey{id: user.id, name: user.name.clone(), key, 
+                    databases: user.databases.iter().map(|(k, v)|(k.clone(), v == "rw")).collect()}
     }
 }
 

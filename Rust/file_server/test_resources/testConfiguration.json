@@ -4,6 +4,6 @@
   "BaseFolder": "/tmp",
   "HashDivider": 10000,
   "Users": [
-    {"Id": 11223344, "Name":  "User1", "KeyFileName": "key.dat", "DatabasesRW": ["db1"], "DatabasesR": ["db2"]}
+    {"Id": 11223344, "Name":  "User1", "KeyFileName": "key.dat", "Databases": {"db1": "rw", "db2": "r"}}
   ]
 }
