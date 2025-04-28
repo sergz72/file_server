@@ -39,14 +39,20 @@ data class FileServiceConfig(val userId: Int, val key: ByteArray, val hostName: 
 
 class FileService(config: FileServiceConfig):
     NetworkService(NetworkServiceConfig(
-        prefix = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(config.userId).array(),
+        prefix = buildPrefix(config.userId),
         key = config.key,
         hostName = config.hostName,
         port = config.port,
         timeoutMs = config.timeoutMs,
         useBzip2 = false)) {
 
-    private val dbName = config.dbName
+    companion object {
+        fun buildPrefix(userId: Int): ByteArray {
+            return ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(userId).array()
+        }
+    }
+
+    private var dbName = config.dbName
 
     fun get(key1: Int, key2: Int, callback: Callback<GetResponse>) {
         val request = buildGetRequest(RequestId.Get, key1, key2)
@@ -202,6 +208,11 @@ class FileService(config: FileServiceConfig):
             }
 
         })
+    }
+
+    fun updateConfig(config: FileServiceConfig) {
+        updateServer(config.hostName, config.port, buildPrefix(config.userId))
+        dbName = config.dbName
     }
 
     private fun buildSetRequest(dbVersion: Int, values: List<KeyValue>): ByteArray {
