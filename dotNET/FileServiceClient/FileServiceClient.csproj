@@ -8,4 +8,8 @@
         <RootNamespace>NetworkServiceClient</RootNamespace>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\FileServiceClientLibrary\FileServiceClientLibrary.csproj" />
+    </ItemGroup>
+
 </Project>

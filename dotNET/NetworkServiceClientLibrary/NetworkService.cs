@@ -8,7 +8,7 @@ public record NetworkServiceConfig(
     byte[] Prefix,
     byte[] Key,
     string HostName,
-    short Port,
+    ushort Port,
     int TimeoutMs = 1000);
 
 public class NetworkService

@@ -13,9 +13,9 @@ public record File(int Version, byte[] Data);
 
 public record GetResponse(int DbVersion, Dictionary<int, File> Data);
 
-public record GetLastResponse(int DbVersion, int Key, File Data);
+public record GetLastResponse(int DbVersion, int? Key, File? Data);
 
-public record FileServiceConfig(int UserId, byte[] Key, string HostName, short Port, int TimeoutMs, string DbName);
+public record FileServiceConfig(int UserId, byte[] Key, string HostName, ushort Port, int TimeoutMs, string DbName);
 
 public class FileService(FileServiceConfig config): NetworkService(new NetworkServiceConfig(
     BitConverter.GetBytes(config.UserId),
@@ -39,6 +39,19 @@ public class FileService(FileServiceConfig config): NetworkService(new NetworkSe
         };
     }
 
+    public GetLastResponse GetLast(int key1, int key2)
+    {
+        var request = BuildGetRequest(RequestId.GetLast, key1, key2);
+        var response = Send(request);
+        return response[0] switch
+        {
+            //no error
+            0 => DecodeGetLastResponse(response[1..]),
+            // error
+            _ => throw new ResponseError(response)
+        };
+    }
+    
     private byte[] BuildGetRequest(RequestId requestId, int key1, int key2)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(_dbName);
@@ -50,6 +63,30 @@ public class FileService(FileServiceConfig config): NetworkService(new NetworkSe
         bw.Write(key1);
         bw.Write(key2);
         return stream.ToArray();
+    }
+
+    private static GetLastResponse DecodeGetLastResponse(byte[] bytes)
+    {
+        using var reader = new BinaryReader(new MemoryStream(bytes));
+        var dbVersion = reader.ReadInt32();
+        var fileIsPresent = reader.ReadByte() != 0;
+        
+        int? key = null;
+        File? data = null;
+        
+        if (fileIsPresent)
+        {
+            var fileVersion = reader.ReadInt32();
+            key = reader.ReadInt32();
+            var valueLength = reader.ReadInt32();
+            var value = reader.ReadBytes(valueLength);
+            data = new File(fileVersion, value);
+        }
+        
+        if (reader.BaseStream.Position != reader.BaseStream.Length)
+            throw new IOException("Incorrect response length");
+        
+        return new GetLastResponse(dbVersion, key, data);
     }
 
     private static GetResponse DecodeGetResponse(byte[] bytes)
